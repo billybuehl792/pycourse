@@ -4,7 +4,8 @@
 import os
 from pptx import Presentation
 from docx import Document
-
+from docx.shared import Pt, Inches
+from docx.oxml.shared import OxmlElement, qn # Necessary Import
 
 class Course:
     
@@ -66,6 +67,7 @@ class Course:
         return pptx
 
     def get_notes(self):
+        # return list of tuples: [(page_num, notes), (...)]
         narration = []
         
         for n, _ in enumerate(self.pres.slides):
@@ -74,19 +76,18 @@ class Course:
             if slide_notes:
                 # omit knowlege checks
                 if slide_text.lower().replace(' ', '').startswith('knowledgecheck'):
-                    print(f'knowledge check skipped: {slide_notes}')
+                    print(f'Slide {str(n+1)} | Knowledge Check skipped: {slide_notes}')
                     continue
                     
                 # omit slide notes after "Aditional Information"
                 if 'Additional Information' in slide_notes:
-                    print(slide_notes)
                     split_notes = slide_notes.split('Additional Information')
                     if split_notes[0].replace('\n', ''):
-                        narration.append(split_notes[0].replace('\n', ''))
-                    print(split_notes[1].replace('\n', ''))
+                        narration.append((n+1, split_notes[0].replace('\n', '')))
+                    print(f'slide {str(n+1)} | Additional Information skipped: ' + split_notes[1].replace('\n', ''))
                     continue
                     
-                narration.append(slide_notes.replace('\n', ''))
+                narration.append((n+1, slide_notes.replace('\n', '')))
 
         return narration
     
@@ -119,19 +120,43 @@ class Course:
         return None
 
 
+def prevent_doc_breakup(document):
+  tags = document.element.xpath('//w:tr')
+  rows = len(tags)
+  for row in range(0,rows):
+    tag = tags[row]                     # Specify which <w:r> tag you want
+    child = OxmlElement('w:cantSplit')  # Create arbitrary tag
+    tag.append(child)                   # Append in the new tag
+
 def mk_narration_docx(course_id, file_id, course_title, notes):
     doc = Document()
-    doc.add_heading(f'{course_title} - Narration Script', level=1)
+    style = doc.styles['Normal']
+    style.font.size, style.font.name = Pt(11), 'Calibri'
+    doc.add_paragraph(f'{course_id} - Narration Script')
+    doc.add_paragraph(course_title)
     table = doc.add_table(rows=0, cols=2)
-    for n, note in enumerate(notes):
+    table.style = 'Table Grid'
+    for note in notes:
         row_cells = table.add_row().cells
-        row_cells[0].text = f'{file_id}_{n}'
-        row_cells[1].text = note
-    
-    doc_file = f'{course_title} narration script_01.docx'
-    doc.save(doc_file)
-    return doc_file
+        row_cells[0].text = f'{file_id}_{note[0]}'
+        row_cells[1].text = note[1]
+    for cell in table.columns[0].cells:
+        cell.width = Inches(0.5)
+    for cell in table.columns[1].cells:
+        cell.width = Inches(7)
+    for section in doc.sections:
+        section.top_margin = Inches(0.5)
+        section.bottom_margin = Inches(0.5)
+        section.left_margin = Inches(0.5)
+        section.right_margin = Inches(0.5)
 
+    prevent_doc_breakup(doc)
+    doc_file = f'{course_title} narration script_01.docx'
+    try:
+        doc.save(doc_file)
+    except PermissionError:
+        print(f'{doc_file} exists! or invalid permissions!')
+    return doc_file
 
 def mk_narration_txt(course_title, notes):
     txt_file = f'{course_title}_narration.txt'
