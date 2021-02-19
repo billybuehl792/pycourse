@@ -5,7 +5,7 @@ import os
 from pptx import Presentation
 from docx import Document
 from docx.shared import Pt, Inches
-from docx.oxml.shared import OxmlElement, qn # Necessary Import
+from docx.oxml.shared import OxmlElement
 
 class Course:
     
@@ -112,33 +112,18 @@ class Course:
             slide_notes = slide.notes_slide.notes_text_frame.text
             return slide_notes.replace('\n', '')
 
-        return None
-
-
-def filter_kc(slide_notes, slide_text, slide_num):
-    # remove knowlege checks
-    if slide_text.lower().replace(' ', '').startswith('knowledgecheck'):
-        print(f'Slide {str(slide_num)} | Knowledge Check skipped: {slide_notes}')
         return ''
-    return slide_notes
 
-def filter_ai(slide_notes, _, slide_num):
-    # omit slide notes after "Aditional Information"
-    if 'Additional Information' in slide_notes:
-        split_notes = slide_notes.split('Additional Information')
-        if split_notes[0].replace('\n', ''):
-            print(f'slide {slide_num} | Additional Information skipped: ' + split_notes[1].replace('\n', ''))
-            return split_notes[0].replace('\n', '')
-        return ''
-    return slide_notes
 
-def prevent_doc_breakup(document):
-  tags = document.element.xpath('//w:tr')
-  rows = len(tags)
-  for row in range(0,rows):
-    tag = tags[row]                     # Specify which <w:r> tag you want
-    child = OxmlElement('w:cantSplit')  # Create arbitrary tag
-    tag.append(child)                   # Append in the new tag
+# create documents
+def prevent_doc_breakup(doc):
+    # prevents document tables from spanning 2 pages
+    tags = doc.element.xpath('//w:tr')
+    rows = len(tags)
+    for row in range(0,rows):
+        tag = tags[row]                     # Specify which <w:r> tag you want
+        child = OxmlElement('w:cantSplit')  # Create arbitrary tag
+        tag.append(child)                   # Append in the new tag
 
 def mk_narration_docx(course_id, file_id, course_title, notes):
     doc = Document()
@@ -166,6 +151,7 @@ def mk_narration_docx(course_id, file_id, course_title, notes):
     doc_file = f'{course_title} narration script_01.docx'
     try:
         doc.save(doc_file)
+        print(f'{doc_file} written!')
     except PermissionError:
         print(f'{doc_file} exists! or invalid permissions!')
     return doc_file
@@ -185,9 +171,28 @@ def mk_narration_xml(course_id, file_id, course_title, pptx_dict, section_header
         section_headers = []
 
 
+# custom slide filters
+def filter_kc(slide_notes, slide_text, slide_num):
+    # remove knowlege checks
+    if slide_text.lower().replace(' ', '').startswith('knowledgecheck'):
+        print(f'Slide {str(slide_num)} | Knowledge Check skipped: {slide_notes}')
+        return ''
+    return slide_notes
+
+def filter_ai(slide_notes, _, slide_num):
+    # omit slide notes after "Aditional Information"
+    if 'Additional Information' in slide_notes:
+        split_notes = slide_notes.split('Additional Information')
+        if split_notes[0].replace('\n', ''):
+            print(f'slide {slide_num} | Additional Information skipped: ' + split_notes[1].replace('\n', ''))
+            return split_notes[0].replace('\n', '')
+        return ''
+    return slide_notes
+
+
 if __name__ == '__main__':
     pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-HQ-WBT-108.pptx'
-    # pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-SS-WBT-0013_RIDM.pptx'
+    #pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-SS-WBT-0013_RIDM.pptx'
 
     course = Course(pres_file, 'HQ108')
     course_notes = course.get_notes(filter_kc, filter_ai)
