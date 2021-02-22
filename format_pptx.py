@@ -2,10 +2,13 @@
 # read_pptx.py - read content from powerpoints
 
 import os
+from math import inf
 from pptx import Presentation
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.oxml.shared import OxmlElement
+from xml.etree.ElementTree import Element, SubElement, Comment, tostring
+from xml.dom import minidom
 
 class Course:
     
@@ -114,73 +117,149 @@ class Course:
 
         return ''
 
+    def mk_narration_docx(self, *kwargs):
 
-# create documents
-def prevent_doc_breakup(doc):
-    # prevents document tables from spanning 2 pages
-    tags = doc.element.xpath('//w:tr')
-    rows = len(tags)
-    for row in range(0,rows):
-        tag = tags[row]                     # Specify which <w:r> tag you want
-        child = OxmlElement('w:cantSplit')  # Create arbitrary tag
-        tag.append(child)                   # Append in the new tag
+        def prevent_doc_breakup(doc):
+            # prevents document tables from spanning 2 pages
+            tags = doc.element.xpath('//w:tr')
+            rows = len(tags)
+            for row in range(0,rows):
+                tag = tags[row]                     # Specify which <w:r> tag you want
+                child = OxmlElement('w:cantSplit')  # Create arbitrary tag
+                tag.append(child)                   # Append in the new tag
+            
+        doc = Document()
+        style = doc.styles['Normal']
+        style.font.size, style.font.name = Pt(11), 'Calibri'
+        doc.add_paragraph(f'{self.course_id} - Narration Script')
+        doc.add_paragraph(self.course_title)
+        table = doc.add_table(rows=0, cols=2)
+        table.style = 'Table Grid'
+        for note in self.get_notes(*kwargs):
+            row_cells = table.add_row().cells
+            row_cells[0].text = f'{self.file_id}_{note[0]}'
+            row_cells[1].text = note[1]
+        for cell in table.columns[0].cells:
+            cell.width = Inches(0.5)
+        for cell in table.columns[1].cells:
+            cell.width = Inches(7)
+        for section in doc.sections:
+            section.top_margin = Inches(0.5)
+            section.bottom_margin = Inches(0.5)
+            section.left_margin = Inches(0.5)
+            section.right_margin = Inches(0.5)
 
-def mk_narration_docx(course_id, file_id, course_title, notes):
-    doc = Document()
-    style = doc.styles['Normal']
-    style.font.size, style.font.name = Pt(11), 'Calibri'
-    doc.add_paragraph(f'{course_id} - Narration Script')
-    doc.add_paragraph(course_title)
-    table = doc.add_table(rows=0, cols=2)
-    table.style = 'Table Grid'
-    for note in notes:
-        row_cells = table.add_row().cells
-        row_cells[0].text = f'{file_id}_{note[0]}'
-        row_cells[1].text = note[1]
-    for cell in table.columns[0].cells:
-        cell.width = Inches(0.5)
-    for cell in table.columns[1].cells:
-        cell.width = Inches(7)
-    for section in doc.sections:
-        section.top_margin = Inches(0.5)
-        section.bottom_margin = Inches(0.5)
-        section.left_margin = Inches(0.5)
-        section.right_margin = Inches(0.5)
+        prevent_doc_breakup(doc)
+        doc_file = f'{self.course_title} narration script_01.docx'
+        try:
+            doc.save(doc_file)
+            print(f'{doc_file} written!')
+        except PermissionError:
+            print(f'{doc_file} exists! or invalid permissions!')
+        return doc_file
 
-    prevent_doc_breakup(doc)
-    doc_file = f'{course_title} narration script_01.docx'
-    try:
-        doc.save(doc_file)
-        print(f'{doc_file} written!')
-    except PermissionError:
-        print(f'{doc_file} exists! or invalid permissions!')
-    return doc_file
+    def mk_narration_xml(self, section_headers=None, course_menu=False, *kwargs):
+        
+        def setup_course_xml(course_menu):
+            # create course element
+            the_course = Element('theCourse')
+            
+            # write comment
+            comment = Comment('Generated with py_course')
+            the_course.append(comment)
 
-def mk_narration_txt(course_title, notes):
-    txt_file = f'{course_title}_narration.txt'
-    with open(txt_file, 'w') as f:
+            # write course title
+            course_title = SubElement(the_course, 'myCourseTitle')
+            course_title.text = self.course_title
+
+            # write study guide file
+            study_guide = SubElement(the_course, 'studyGuidePDF')
+            study_guide.text = f'{self.course_id}_508.pdf'
+
+            # write study guide print
+            study_guide_print = SubElement(the_course, 'studyGuidePrint')
+            study_guide_print.text = f'{self.course_id}_StudyGuide.pdf'
+
+            # write courseMenu option
+            if course_menu:
+                course_menu = SubElement(the_course, 'courseMenu')
+                course_menu.text = 'YES'
+
+            return the_course
+        
+        # create xml file with notes
+        if not section_headers:
+            section_headers = [('Main', 1)]
+
+        # course xml
+        the_course = setup_course_xml(course_menu)
+
+        # narration text
+        notes = self.get_notes(*kwargs)
+
+        current_header_num = 0              # section_header iterator
+        file_num = 0                        # section file iterator
+        next_header = inf                   # next section_header slide start number
+        if len(section_headers) > 1:
+            next_header = section_headers[current_header_num + 1][1]
+        
+        the_sections = SubElement(the_course, 'theSections', {'title': section_headers[current_header_num][0]})
         for note in notes:
-            f.write(f'{note}\n\n')
-    
-    print(f'{txt_file} written!')
-    return True
+            # note passes next_header
+            if note[0] >= next_header:
+                # move current_header_num
+                current_header_num += 1
 
-def mk_narration_xml(course_id, file_id, course_title, pptx_dict, section_headers=None):
-    # create xml file with notes
-    if not section_headers:
-        section_headers = []
+                # create new theSections elem
+                the_sections = SubElement(the_course, 'theSections', {'title': section_headers[current_header_num][0]})
+
+                # move next_header
+                if len(section_headers) > current_header_num + 1:
+                    next_header = section_headers[current_header_num + 1][1]
+                else:
+                    next_header = inf
+
+                # set file_num to 0
+                file_num = 0
+            
+            # add sectionNumber elem within theSections elem
+            section_num = SubElement(the_sections, 'sectionNumber')
+
+            # add theFIleToLoad elem within sectionNumber elem
+            the_file_to_load = SubElement(section_num, 'theFileToLoad')
+            the_file_to_load.text = f'{self.file_id}_s{current_header_num}_{file_num}.html'
+            file_num += 1
+
+            # add closedCaption elem within sectionNumber elem
+            closed_caption = SubElement(section_num, 'closedCaptionText')
+            closed_caption.text = note[1]
+        
+        xml_file = f'{self.course_title}_narration.xml'
+        reparsed = minidom.parseString(tostring(the_course).decode('utf-8'))
+        with open(xml_file, 'w') as f:
+            f.write(reparsed.toprettyxml(indent='   '))
+        print(f'{xml_file} written!')
+
+    def mk_narration_txt(self, *kwargs):
+        txt_file = f'{self.course_title}_narration.txt'
+        with open(txt_file, 'w') as f:
+            for note in self.get_notes(*kwargs):
+                f.write(f'{note}\n\n')
+        
+        print(f'{txt_file} written!')
+        return True
 
 
 # custom slide filters
 def filter_kc(slide_notes, slide_text, slide_num):
-    # remove knowlege checks
+    # remove knowlege check notes slides
     if slide_text.lower().replace(' ', '').startswith('knowledgecheck'):
         print(f'Slide {str(slide_num)} | Knowledge Check skipped: {slide_notes}')
         return ''
     return slide_notes
 
 def filter_ai(slide_notes, _, slide_num):
-    # omit slide notes after "Aditional Information"
+    # omit slide notes after "Aditional Information" in notes
     if 'Additional Information' in slide_notes:
         split_notes = slide_notes.split('Additional Information')
         if split_notes[0].replace('\n', ''):
@@ -195,5 +274,10 @@ if __name__ == '__main__':
     #pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-SS-WBT-0013_RIDM.pptx'
 
     course = Course(pres_file, 'HQ108')
-    course_notes = course.get_notes(filter_kc, filter_ai)
-    mk_narration_docx(course.course_id, course.file_id, course.course_title, course_notes)
+    # course.mk_narration_txt(filter_kc, filter_ai)
+    # course.mk_narration_docx(filter_kc, filter_ai)
+    section_headers = [
+        ('Introduction', 1),
+        ('COPV Basic', 6)
+    ]
+    course.mk_narration_xml(section_headers, True, filter_kc, filter_ai)
