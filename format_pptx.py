@@ -7,8 +7,9 @@ from pptx import Presentation
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.oxml.shared import OxmlElement
-from xml.etree.ElementTree import Element, SubElement, Comment, tostring
+import xml.etree.ElementTree as gfg
 from xml.dom import minidom
+
 
 class Course:
     
@@ -162,27 +163,27 @@ class Course:
         
         def setup_course_xml(course_menu):
             # create course element
-            the_course = Element('theCourse')
+            the_course = gfg.Element('theCourse')
             
             # write comment
-            comment = Comment('Generated with py_course')
+            comment = gfg.Comment('Generated with py_course')
             the_course.append(comment)
 
             # write course title
-            course_title = SubElement(the_course, 'myCourseTitle')
+            course_title = gfg.SubElement(the_course, 'myCourseTitle')
             course_title.text = self.course_title
 
             # write study guide file
-            study_guide = SubElement(the_course, 'studyGuidePDF')
+            study_guide = gfg.SubElement(the_course, 'studyGuidePDF')
             study_guide.text = f'{self.course_id}_508.pdf'
 
             # write study guide print
-            study_guide_print = SubElement(the_course, 'studyGuidePrint')
+            study_guide_print = gfg.SubElement(the_course, 'studyGuidePrint')
             study_guide_print.text = f'{self.course_id}_StudyGuide.pdf'
 
             # write courseMenu option
             if course_menu:
-                course_menu = SubElement(the_course, 'courseMenu')
+                course_menu = gfg.SubElement(the_course, 'courseMenu')
                 course_menu.text = 'YES'
 
             return the_course
@@ -198,12 +199,12 @@ class Course:
         notes = self.get_notes(*args)
 
         current_header_num = 0              # section_header iterator
-        file_num = 0                        # section file iterator
+        file_num = 1                        # section file iterator
         next_header = inf                   # next section_header slide start number
         if len(section_headers) > 1:
             next_header = section_headers[current_header_num + 1][1]
         
-        the_sections = SubElement(the_course, 'theSections', {'title': section_headers[current_header_num][0]})
+        the_sections = gfg.SubElement(the_course, 'theSections', {'title': section_headers[current_header_num][0]})
         for note in notes:
             # note passes next_header
             if note[0] >= next_header:
@@ -211,7 +212,7 @@ class Course:
                 current_header_num += 1
 
                 # create new theSections elem
-                the_sections = SubElement(the_course, 'theSections', {'title': section_headers[current_header_num][0]})
+                the_sections = gfg.SubElement(the_course, 'theSections', {'title': section_headers[current_header_num][0]})
 
                 # move next_header
                 if len(section_headers) > current_header_num + 1:
@@ -220,22 +221,22 @@ class Course:
                     next_header = inf
 
                 # set file_num to 0
-                file_num = 0
+                file_num = 1
             
             # add sectionNumber elem within theSections elem
-            section_num = SubElement(the_sections, 'sectionNumber')
+            section_num = gfg.SubElement(the_sections, 'sectionNumber')
 
             # add theFIleToLoad elem within sectionNumber elem
-            the_file_to_load = SubElement(section_num, 'theFileToLoad')
+            the_file_to_load = gfg.SubElement(section_num, 'theFileToLoad')
             the_file_to_load.text = f'{self.file_id}_s{current_header_num}_{file_num}.html'
             file_num += 1
 
             # add closedCaption elem within sectionNumber elem
-            closed_caption = SubElement(section_num, 'closedCaptionText')
+            closed_caption = gfg.SubElement(section_num, 'closedCaptionText')
             closed_caption.text = note[1]
         
         xml_file = f'{self.course_title}_narration.xml'
-        reparsed = minidom.parseString(tostring(the_course).decode('utf-8'))
+        reparsed = minidom.parseString(gfg.tostring(the_course).decode('utf-8'))
         with open(xml_file, 'w') as f:
             f.write(reparsed.toprettyxml(indent='   '))
         print(f'{xml_file} written!')
@@ -263,7 +264,7 @@ def filter_ai(slide_notes, _, slide_num):
     if 'Additional Information' in slide_notes:
         split_notes = slide_notes.split('Additional Information')
         if split_notes[0].replace('\n', ''):
-            print(f'slide {slide_num} | Additional Information skipped: ' + split_notes[1].replace('\n', ''))
+            print(f'Slide {slide_num} | Additional Information skipped: ' + split_notes[1].replace('\n', ''))
             return split_notes[0].replace('\n', '')
         return ''
     return slide_notes
@@ -278,6 +279,11 @@ if __name__ == '__main__':
     # course.mk_narration_docx(filter_kc, filter_ai)
     section_headers = [
         ('Introduction', 1),
-        ('COPV Basic', 6)
+        ('COPV Basic', 6),
+        ('COPV Damage and Testing', 15),
+        ('Safety', 28),
+        ('Damage Essentials', 37),
+        ('Summary', 45)
     ]
-    course.mk_narration_xml(filter_kc, filter_ai)
+    course.mk_narration_xml(filter_kc, filter_ai, section_headers=section_headers, course_menu=True)
+    # course.mk_narration_docx(filter_kc, filter_ai)
