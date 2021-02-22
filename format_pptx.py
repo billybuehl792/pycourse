@@ -70,7 +70,7 @@ class Course:
             })
         return pptx
 
-    def get_notes(self, *kwargs):
+    def get_notes(self, *args):
         # return list of tuples: [(page_num, notes), (...)]
         narration = []
         
@@ -80,8 +80,8 @@ class Course:
             slide_notes = self.get_slide_notes(n+1)
 
             # apply filters
-            for k in kwargs:
-                slide_notes = k(slide_notes, slide_text, n+1)
+            for arg in args:
+                slide_notes = arg(slide_notes, slide_text, n+1)
 
             # add slide notes to narration list
             if slide_notes:
@@ -117,7 +117,7 @@ class Course:
 
         return ''
 
-    def mk_narration_docx(self, *kwargs):
+    def mk_narration_docx(self, *args):
 
         def prevent_doc_breakup(doc):
             # prevents document tables from spanning 2 pages
@@ -135,7 +135,7 @@ class Course:
         doc.add_paragraph(self.course_title)
         table = doc.add_table(rows=0, cols=2)
         table.style = 'Table Grid'
-        for note in self.get_notes(*kwargs):
+        for note in self.get_notes(*args):
             row_cells = table.add_row().cells
             row_cells[0].text = f'{self.file_id}_{note[0]}'
             row_cells[1].text = note[1]
@@ -158,7 +158,7 @@ class Course:
             print(f'{doc_file} exists! or invalid permissions!')
         return doc_file
 
-    def mk_narration_xml(self, section_headers=None, course_menu=False, *kwargs):
+    def mk_narration_xml(self, *args, section_headers=None, course_menu=False):
         
         def setup_course_xml(course_menu):
             # create course element
@@ -195,7 +195,7 @@ class Course:
         the_course = setup_course_xml(course_menu)
 
         # narration text
-        notes = self.get_notes(*kwargs)
+        notes = self.get_notes(*args)
 
         current_header_num = 0              # section_header iterator
         file_num = 0                        # section file iterator
@@ -240,10 +240,10 @@ class Course:
             f.write(reparsed.toprettyxml(indent='   '))
         print(f'{xml_file} written!')
 
-    def mk_narration_txt(self, *kwargs):
+    def mk_narration_txt(self, *args):
         txt_file = f'{self.course_title}_narration.txt'
         with open(txt_file, 'w') as f:
-            for note in self.get_notes(*kwargs):
+            for note in self.get_notes(*args):
                 f.write(f'{note}\n\n')
         
         print(f'{txt_file} written!')
@@ -280,4 +280,4 @@ if __name__ == '__main__':
         ('Introduction', 1),
         ('COPV Basic', 6)
     ]
-    course.mk_narration_xml(section_headers, True, filter_kc, filter_ai)
+    course.mk_narration_xml(filter_kc, filter_ai)
