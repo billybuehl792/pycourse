@@ -1,7 +1,28 @@
 #!python
 # read_pptx.py - read content from powerpoints
+'''
+    !!Important!!
+    PowerPoint must:
+        - be created using standard microsoft layout scheme (in exact order!)
+            • Title (presentation title slide)
+            • Title and Content
+            • Section Header (sometimes called Segue)
+            • Two Content (side by side bullet textboxes)
+            • Comparison (same but additional title for each side by side content box)
+            • Title Only
+            • Blank
+            • Content with Caption
+            • Picture with Caption
+        - contain only desired section header text in section header slides
+        - TODO: Main Menu condition
+        - TODO: Knowledge condition
+        - TODO: HTML video condition
+'''
+
 
 import os
+import json
+import sys
 from math import inf
 from pptx import Presentation
 from docx import Document
@@ -25,6 +46,29 @@ class Course:
     def pres(self):
         # return presentation
         return Presentation(self.pptx_file)
+
+    @property
+    def title_slides(self):
+        title_layout_index = 0
+        layout = self.pres.slide_master.slide_layouts[title_layout_index]
+        return [slide.slide_id for slide in layout.used_by_slides]
+
+    @property
+    def section_header_slides(self):
+        section_header_layout_index = 2
+        layout = self.pres.slide_master.slide_layouts[section_header_layout_index]
+        return [slide.slide_id for slide in layout.used_by_slides]
+    
+    @property
+    def standard_slides(self):
+        normal_slides = []
+        for n, layout in enumerate(self.pres.slide_layouts):
+            # if title slide or slide header
+            if n == 0 or n == 2:
+                continue
+            for slide in layout.used_by_slides:
+                normal_slides.append(slide.slide_id)
+        return normal_slides
 
     @property
     def course_title(self):
@@ -60,15 +104,47 @@ class Course:
             raise Exception('must provide .pptx file!')
         self._pptx_file = f
 
-    def get_pptx_dict(self):
-        # return dictionary of pptx
-        pptx = []
-        for n, _ in enumerate(self.pres):
-            pptx.append({
-                'slide_number': n + 1,
-                'slide_text': self.get_slide_text(n+1),
-                'slide_notes': self.get_slide_notes(n+1)
-            })
+    def get_pptx(self):
+
+        def mk_section(section_title):
+            # return section dictionary
+            section = {
+                'section_title': section_title,
+                'slides': []
+            }
+            return section
+
+        def mk_slide(slide_number, slide_text, slide_notes):
+            # return slide dictionary - slide text + narration
+            slide = {
+                'slide_number': slide_number,
+                'slide_text': slide_text,
+                'slide_notes': slide_notes
+            }
+            return slide
+
+        pptx = {}   # return dictionary of pptx
+
+        pptx['course_title'] = self.course_title
+        pptx['course_id'] = self.course_id
+        pptx['study_guide_pdf'] = f'{self.course_id}_508.pdf'
+        pptx['study_guide_print'] = f'{self.course_id}_StudyGuide.pdf'
+        pptx['sections'] = [{'section_title': 'Introduction', 'slides': []}]
+
+        for n, slide in enumerate(self.pres.slides):
+            slide_text = self.get_slide_text(n+1)
+            slide_notes = self.get_slide_notes(n+1)
+
+            # section header slides - append new section
+            if slide.slide_id in self.section_header_slides:
+                pptx['sections'].append(mk_section(slide_text))
+            # add slide obj to pptx
+            pptx['sections'][-1]['slides'].append(mk_slide(n+1, slide_text, slide_notes))
+        
+        with open('pptx_file_json.json', 'w', encoding='utf-8') as f:
+            json.dump(pptx, f, ensure_ascii=False, indent=4)
+            print('file written!')
+        
         return pptx
 
     def get_notes(self, *args):
@@ -104,7 +180,7 @@ class Course:
                 for run in paragraph.runs:
                     text_runs.append(run.text.replace('\n', ''))
 
-        return '\n'.join(text_runs)
+        return text_runs
 
     def get_slide_notes(self, slide_num=1):
         # return slide notes section
@@ -254,7 +330,7 @@ class Course:
 # custom slide filters
 def filter_kc(slide_notes, slide_text, slide_num):
     # remove knowlege check notes slides
-    if slide_text.lower().replace(' ', '').startswith('knowledgecheck'):
+    if ' '.join(slide_text).lower().replace(' ', '').startswith('knowledgecheck'):
         print(f'Slide {str(slide_num)} | Knowledge Check skipped: {slide_notes}')
         return ''
     return slide_notes
@@ -271,19 +347,17 @@ def filter_ai(slide_notes, _, slide_num):
 
 
 if __name__ == '__main__':
-    pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-HQ-WBT-108.pptx'
-    #pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-SS-WBT-0013_RIDM.pptx'
+    # try:
+    #     pres_file = sys.argv[1]
+    #     file_id = sys.argv[2]
+    # except IndexError:
+    #     print('Provide arguments: <pptx file> <course file_id>')
+    #     sys.exit()
 
-    course = Course(pres_file, 'HQ108')
-    # course.mk_narration_txt(filter_kc, filter_ai)
-    # course.mk_narration_docx(filter_kc, filter_ai)
-    section_headers = [
-        ('Introduction', 1),
-        ('COPV Basic', 6),
-        ('COPV Damage and Testing', 15),
-        ('Safety', 28),
-        ('Damage Essentials', 37),
-        ('Summary', 45)
-    ]
-    course.mk_narration_xml(filter_kc, filter_ai, section_headers=section_headers, course_menu=True)
-    # course.mk_narration_docx(filter_kc, filter_ai)
+    pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-HQ-WBT-108.pptx'
+    # pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-SS-WBT-0013_RIDM.pptx'
+    file_id = 'HQ108'
+
+    course = Course(pres_file, file_id)
+
+    course.get_pptx()
