@@ -109,7 +109,7 @@ class Course:
         def mk_section(section_title):
             # return section dictionary
             section = {
-                'section_title': section_title,
+                'section_title': section_title[0],
                 'slides': []
             }
             return section
@@ -235,9 +235,9 @@ class Course:
             print(f'{doc_file} exists! or invalid permissions!')
         return doc_file
 
-    def mk_narration_xml(self, *args, section_headers=None, course_menu=False):
+    def mk_narration_xml(self, pptx_dict):
         
-        def setup_course_xml(course_menu):
+        def setup_course_xml():
             # create course element
             the_course = gfg.Element('theCourse')
             
@@ -258,58 +258,30 @@ class Course:
             study_guide_print.text = f'{self.course_id}_StudyGuide.pdf'
 
             # write courseMenu option
-            if course_menu:
-                course_menu = gfg.SubElement(the_course, 'courseMenu')
-                course_menu.text = 'YES'
+            course_menu = gfg.SubElement(the_course, 'courseMenu')
+            course_menu.text = 'YES'
 
             return the_course
         
-        # create xml file with notes
-        if not section_headers:
-            section_headers = [('Main', 1)]
-
         # course xml
-        the_course = setup_course_xml(course_menu)
+        the_course = setup_course_xml()
 
-        # narration text
-        notes = self.get_notes(*args)
+        for n, section in enumerate(pptx_dict.get('sections')):
+            # theSections elem
+            the_sections = gfg.SubElement(the_course, 'theSections', {'title': section.get('section_title')})
+            file_num = 0
+            for slide in section.get('slides'):
+                # sectionNumber elem
+                section_num = gfg.SubElement(the_sections, 'sectionNumber')
 
-        current_header_num = 0              # section_header iterator
-        file_num = 1                        # section file iterator
-        next_header = inf                   # next section_header slide start number
-        if len(section_headers) > 1:
-            next_header = section_headers[current_header_num + 1][1]
-        
-        the_sections = gfg.SubElement(the_course, 'theSections', {'title': section_headers[current_header_num][0]})
-        for note in notes:
-            # note passes next_header
-            if note[0] >= next_header:
-                # move current_header_num
-                current_header_num += 1
+                # theFileToLoad elem
+                the_file_to_load = gfg.SubElement(section_num, 'theFileToLoad')
+                the_file_to_load.text = f'{self.file_id}_s{n}_{file_num+1}.html'
+                file_num += 1
 
-                # create new theSections elem
-                the_sections = gfg.SubElement(the_course, 'theSections', {'title': section_headers[current_header_num][0]})
-
-                # move next_header
-                if len(section_headers) > current_header_num + 1:
-                    next_header = section_headers[current_header_num + 1][1]
-                else:
-                    next_header = inf
-
-                # set file_num to 0
-                file_num = 1
-            
-            # add sectionNumber elem within theSections elem
-            section_num = gfg.SubElement(the_sections, 'sectionNumber')
-
-            # add theFIleToLoad elem within sectionNumber elem
-            the_file_to_load = gfg.SubElement(section_num, 'theFileToLoad')
-            the_file_to_load.text = f'{self.file_id}_s{current_header_num}_{file_num}.html'
-            file_num += 1
-
-            # add closedCaption elem within sectionNumber elem
-            closed_caption = gfg.SubElement(section_num, 'closedCaptionText')
-            closed_caption.text = note[1]
+                # closed caption elem
+                closed_caption = gfg.SubElement(section_num, 'closedCaptionText')
+                closed_caption.text = slide.get('slide_notes')
         
         xml_file = f'{self.course_title}_narration.xml'
         reparsed = minidom.parseString(gfg.tostring(the_course).decode('utf-8'))
@@ -359,5 +331,5 @@ if __name__ == '__main__':
     file_id = 'HQ108'
 
     course = Course(pres_file, file_id)
-
-    course.get_pptx()
+    pptx_dict = course.get_pptx()
+    course.mk_narration_xml(pptx_dict)
