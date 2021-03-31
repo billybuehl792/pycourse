@@ -24,28 +24,84 @@ import os
 import json
 import sys
 from math import inf
+from typing import Counter
 from pptx import Presentation
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.oxml.shared import OxmlElement
-import xml.etree.ElementTree as gfg
-from xml.dom import minidom
+from lxml import etree
 
+
+class Slide:
+
+    def __init__(self, course, slide_id):
+        self.course = course
+        self.slide_id = slide_id
+        self.slide = self.course.pres.slides.get(self.slide_id, default=None)
+        self.slide_num = self.course.pres.slides.index(self.slide) + 1
+
+    @property
+    def slide_type(self):
+        # return slide's type
+        if self.slide_id in self.course.title_slides:
+            return 'title'
+        elif self.slide_id in self.course.section_header_slides:
+            return 'section_header'
+        elif self.slide_id in self.course.menu_slides:
+            return 'menu'
+        else:
+            return 'standard'
+    
+    @property
+    def slide_text(self):
+        # return text in slide
+        text_runs = []
+        slide = self.slide
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            for paragraph in shape.text_frame.paragraphs:
+                for run in paragraph.runs:
+                    text_runs.append(self.format_string(run.text))
+
+        return text_runs
+    
+    @property
+    def slide_notes(self):
+        # return slide notes section (narration)
+        if self.slide.has_notes_slide:
+            slide_notes = self.slide.notes_slide.notes_text_frame.text
+            return self.format_string(slide_notes)
+
+        return ''
+
+    @staticmethod
+    def format_string(string):
+        string = string.replace('\n', ' ')
+        string = string.replace('’', "'")
+        string = string.replace('‘', "'")
+        string = string.replace('“', '"')
+        string = string.replace('”', '"')
+        string = string.replace('–', '-')
+        string = string.replace('—', '-')
+        string = string.replace('‐', '')
+        string = string.replace('…', '...')
+        string = string.replace('˚', ' degrees ')
+        if not string.replace(' ', ''):
+            return ''
+        return string
+    
 
 class Course:
     
     def __init__(self, pptx_file, file_id):
         self.file_id = file_id
         self.pptx_file = pptx_file
+        self.pres = Presentation(self.pptx_file)
     
     @property
-    def pptx_file(self):
-        return self._pptx_file
-
-    @property
-    def pres(self):
-        # return presentation
-        return Presentation(self.pptx_file)
+    def slide_ids(self):
+        return [slide.slide_id for slide in self.pres.slides]
 
     @property
     def title_slides(self):
@@ -60,11 +116,17 @@ class Course:
         return [slide.slide_id for slide in layout.used_by_slides]
     
     @property
+    def menu_slides(self):
+        menu_slide_layout_index = 5
+        layout = self.pres.slide_master.slide_layouts[menu_slide_layout_index]
+        return [slide.slide_id for slide in layout.used_by_slides]
+
+    @property
     def standard_slides(self):
         normal_slides = []
         for n, layout in enumerate(self.pres.slide_layouts):
             # if title slide or slide header
-            if n == 0 or n == 2:
+            if n in [0, 2, 5]:
                 continue
             for slide in layout.used_by_slides:
                 normal_slides.append(slide.slide_id)
@@ -94,17 +156,22 @@ class Course:
                 continue
             return shape.text_frame.text
 
-    @pptx_file.setter
-    def pptx_file(self, f):
-        # check if file exists
-        if not os.path.isfile(f): raise FileExistsError
-
-        # check if file is pptx file
-        if os.path.splitext(f)[-1].lower() != '.pptx':
-            raise Exception('must provide .pptx file!')
-        self._pptx_file = f
-
     def get_pptx(self):
+
+        def format_string(string):
+            string = string.replace('’', "'")
+            string = string.replace('‘', "'")
+            string = string.replace('“', '"')
+            string = string.replace('”', '"')
+            string = string.replace('–', '-')
+            string = string.replace('—', '-')
+            string = string.replace('‐', '')
+            string = string.replace('…', '...')
+            string = string.replace('˚', ' degrees ')
+            if not string.replace(' ', ''):
+                return ''
+            return string.encode('utf-8').decode('utf-8', 'ignore')
+
 
         def mk_section(section_title):
             # return section dictionary
@@ -118,7 +185,7 @@ class Course:
             # return slide dictionary - slide text + narration
             slide = {
                 'slide_number': slide_number,
-                'slide_text': slide_text,
+                'slide_text': [item for item in slide_text if item],
                 'slide_notes': slide_notes
             }
             return slide
@@ -132,8 +199,8 @@ class Course:
         pptx['sections'] = [{'section_title': 'Introduction', 'slides': []}]
 
         for n, slide in enumerate(self.pres.slides):
-            slide_text = self.get_slide_text(n+1)
-            slide_notes = self.get_slide_notes(n+1)
+            slide_text = [format_string(item) for item in self.get_slide_text(n+1)]
+            slide_notes = format_string(self.get_slide_notes(n+1))
 
             # section header slides - append new section
             if slide.slide_id in self.section_header_slides:
@@ -143,7 +210,7 @@ class Course:
         
         with open('pptx_file_json.json', 'w', encoding='utf-8') as f:
             json.dump(pptx, f, ensure_ascii=False, indent=4)
-            print('file written!')
+            print('json file written!')
         
         return pptx
 
@@ -190,7 +257,7 @@ class Course:
             raise Exception('Slide number must be less than slide length')
         if slide.has_notes_slide:
             slide_notes = slide.notes_slide.notes_text_frame.text
-            return slide_notes.replace('\n', '')
+            return slide_notes.replace('\n', ' ')
 
         return ''
 
@@ -227,7 +294,7 @@ class Course:
             section.right_margin = Inches(0.5)
 
         prevent_doc_breakup(doc)
-        doc_file = f'{self.course_title} narration script_01.docx'
+        doc_file = f'{self.course_title} narration script.docx'
         try:
             doc.save(doc_file)
             print(f'{doc_file} written!')
@@ -237,56 +304,37 @@ class Course:
 
     def mk_narration_xml(self, pptx_dict):
         
-        def setup_course_xml():
-            # create course element
-            the_course = gfg.Element('theCourse')
-            
-            # write comment
-            comment = gfg.Comment('Generated with py_course')
-            the_course.append(comment)
-
-            # write course title
-            course_title = gfg.SubElement(the_course, 'myCourseTitle')
-            course_title.text = self.course_title
-
-            # write study guide file
-            study_guide = gfg.SubElement(the_course, 'studyGuidePDF')
-            study_guide.text = f'{self.course_id}_508.pdf'
-
-            # write study guide print
-            study_guide_print = gfg.SubElement(the_course, 'studyGuidePrint')
-            study_guide_print.text = f'{self.course_id}_StudyGuide.pdf'
-
-            # write courseMenu option
-            course_menu = gfg.SubElement(the_course, 'courseMenu')
-            course_menu.text = 'YES'
-
-            return the_course
-        
         # course xml
-        the_course = setup_course_xml()
+        the_course = etree.Element('theCourse')
+        the_course.append(etree.Comment('Generated with pycourse!'))
+        etree.SubElement(the_course, 'myCourseTitle').text = self.course_title
+        etree.SubElement(the_course, 'studyGuidePDF').text = f'{self.course_id}.pdf'
+        etree.SubElement(the_course, 'studyGuidePrint').text = f'{self.course_id}_StudyGuide.pdf'
+        etree.SubElement(the_course, 'courseMenu').text = 'YES'
 
         for n, section in enumerate(pptx_dict.get('sections')):
             # theSections elem
-            the_sections = gfg.SubElement(the_course, 'theSections', {'title': section.get('section_title')})
+            the_sections = etree.SubElement(the_course, 'theSections', {'title': section.get('section_title')})
+            
             file_num = 0
             for slide in section.get('slides'):
                 # sectionNumber elem
-                section_num = gfg.SubElement(the_sections, 'sectionNumber')
+                section_num = etree.SubElement(the_sections, 'sectionNumber')
 
                 # theFileToLoad elem
-                the_file_to_load = gfg.SubElement(section_num, 'theFileToLoad')
+                the_file_to_load = etree.SubElement(section_num, 'theFileToLoad')
                 the_file_to_load.text = f'{self.file_id}_s{n}_{file_num+1}.html'
                 file_num += 1
 
                 # closed caption elem
-                closed_caption = gfg.SubElement(section_num, 'closedCaptionText')
+                closed_caption = etree.SubElement(section_num, 'closedCaptionText')
                 closed_caption.text = slide.get('slide_notes')
         
         xml_file = f'{self.course_title}_narration.xml'
-        reparsed = minidom.parseString(gfg.tostring(the_course).decode('utf-8'))
+        tree_string = etree.tostring(the_course, pretty_print=True).decode('utf-8')
         with open(xml_file, 'w') as f:
-            f.write(reparsed.toprettyxml(indent='   '))
+            f.write(tree_string)
+
         print(f'{xml_file} written!')
 
     def mk_narration_txt(self, *args):
@@ -328,8 +376,15 @@ if __name__ == '__main__':
 
     pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-HQ-WBT-108.pptx'
     # pres_file = r'C:\Users\wbuehl\Documents\python_stuff\powerpoint_automation\SMA-SS-WBT-0013_RIDM.pptx'
+    pres_file = r'SMA-AS-WBT-101 NAMIS Refresher 11-6-2020.pptx'
+    # pres_file = r'SMA-OV-WBT-132 Orion Capsure Recovery Case Study 03-04-21.pptx'
+    # pres_file = r'SMA-OV-WBT-131_03-23-21.pptx'
     file_id = 'HQ108'
 
     course = Course(pres_file, file_id)
-    pptx_dict = course.get_pptx()
-    course.mk_narration_xml(pptx_dict)
+    slide_id = course.slide_ids[1]
+    slide = Slide(course, slide_id)
+    print(slide.slide_num)
+    print(slide.slide_notes)
+    # course_dict = course.get_pptx()
+    # course.mk_narration_xml(course_dict)
