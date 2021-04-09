@@ -1,30 +1,9 @@
 #!python
 # read_pptx.py - read content from powerpoints
-'''
-    !!Important!!
-    PowerPoint must:
-        - be created using standard microsoft layout scheme (in exact order!)
-            • Title (presentation title slide)
-            • Title and Content
-            • Section Header (sometimes called Segue)
-            • Two Content (side by side bullet textboxes)
-            • Comparison (same but additional title for each side by side content box)
-            • Title Only
-            • Blank
-            • Content with Caption
-            • Picture with Caption
-        - contain only desired section header text in section header slides
-        - TODO: Main Menu condition
-        - TODO: Knowledge condition
-        - TODO: HTML video condition
-'''
 
-
-import os
 import json
+import re
 import sys
-from math import inf
-from typing import Counter
 from pptx import Presentation
 from docx import Document
 from docx.shared import Pt, Inches
@@ -94,8 +73,8 @@ class Slide:
 
 class Course:
     
-    def __init__(self, pptx_file, file_id):
-        self.file_id = file_id
+    def __init__(self, pptx_file):
+        # self.file_id = file_id
         self.pptx_file = pptx_file
         self.pres = Presentation(self.pptx_file)
     
@@ -134,28 +113,25 @@ class Course:
 
     @property
     def course_title(self):
-        # title slide - first slide of powerpoint
-        title_slide = self.pres.slides[0]
-
-        for shape in title_slide.shapes:
-            if not shape.has_text_frame:
-                continue
-            return shape.text_frame.text
+        # title slide - first text of first slide of powerpoint
+        slide = Slide(self, self.slide_ids[0])
+        return(slide.slide_text[0])
 
     @property
     def course_id(self):
-        # title slide - first slide of powerpoint
-        title_slide = self.pres.slides[0]
-
-        # skip course title (first item)
-        itershapes = iter(title_slide.shapes)
-        next(itershapes)
-        
-        for shape in itershapes:
-            if not shape.has_text_frame:
-                continue
-            return shape.text_frame.text
+        # title slide - last text of first slide of powerpoint
+        slide = Slide(self, self.slide_ids[0])
+        return(slide.slide_text[-1])
     
+    @property
+    def file_id(self):
+        try:
+            code = re.search('-(.*?)-', self.course_id).group(1)
+            num = self.course_id[self.course_id.rfind('-')+1:]
+            return f'{code}-{num}'
+        except Exception:
+            return 'FILE_ID_ERROR'
+
     @property
     def course(self):
 
@@ -224,7 +200,7 @@ class Course:
             section.right_margin = Inches(0.5)
 
         prevent_doc_breakup(doc)
-        doc_file = f'{self.course_title}_narration.docx'
+        doc_file = f'{self.course_id}_narration.docx'
         try:
             doc.save(doc_file)
         except PermissionError:
@@ -237,7 +213,7 @@ class Course:
         # course xml
         the_course = etree.Element('theCourse')
         the_course.append(etree.Comment('Generated with pycourse!'))
-        etree.SubElement(the_course, 'myCourseTitle').text = self.course_title
+        etree.SubElement(the_course, 'myCourseTitle').text = self.course_id
         etree.SubElement(the_course, 'studyGuidePDF').text = f'{self.course_id}.pdf'
         etree.SubElement(the_course, 'studyGuidePrint').text = f'{self.course_id}_StudyGuide.pdf'
         etree.SubElement(the_course, 'courseMenu').text = 'YES'
@@ -261,7 +237,7 @@ class Course:
                 slide = Slide(self, s)
                 closed_caption.text = slide.slide_notes
         
-        xml_file = f'{self.course_title}_narration.xml'
+        xml_file = f'{self.course_id}_narration.xml'
         tree_string = etree.tostring(the_course, pretty_print=True).decode('utf-8')
         with open(xml_file, 'w') as f:
             f.write(tree_string)
@@ -269,7 +245,7 @@ class Course:
         return xml_file
 
     def write_txt(self, *args):
-        txt_file = f'{self.course_title}_narration.txt'
+        txt_file = f'{self.course_id}_narration.txt'
         with open(txt_file, 'w') as f:
             for item in self.slide_ids:
                 slide = Slide(self, item)
@@ -304,22 +280,17 @@ def filter_ai(slide_notes, _, slide_num):
 if __name__ == '__main__':
     # try:
     #     pres_file = sys.argv[1]
-    #     file_id = sys.argv[2]
     # except IndexError:
-    #     print('Provide arguments: <pptx file> <course file_id>')
+    #     print('Provide arguments: <pptx file>')
     #     sys.exit()
 
-    pres_file = r'test_files\SMA-HQ-WBT-108.pptx'
-    # pres_file = r'test_files\SMA-SS-WBT-0013_RIDM.pptx'
+    # pres_file = r'test_files\SMA-HQ-WBT-108.pptx'
+    pres_file = r'test_files\SMA-SS-WBT-0013_RIDM.pptx'
     # pres_file = r'test_files\SMA-AS-WBT-101 NAMIS Refresher 11-6-2020.pptx'
     # pres_file = r'test_files\SMA-OV-WBT-132 Orion Capsure Recovery Case Study 03-04-21.pptx'
-    pres_file = r'test_files\SMA-OV-WBT-131_03-23-21.pptx'
-    file_id = 'HQ108'
+    # pres_file = r'test_files\SMA-OV-WBT-131_03-23-21.pptx'
 
-    course = Course(pres_file, file_id)
-    print(course.write_json())
-    print(course.write_xml())
-    print(course.write_docx())
-    print(course.write_txt())
-    # course_dict = course.get_pptx()
-    # course.mk_narration_xml(course_dict)
+    course = Course(pres_file)
+    for slide in course.slide_ids:
+        s = Slide(course, slide)
+        print(s.slide_text)
