@@ -73,9 +73,12 @@ class Slide:
 
 class Course:
     
-    def __init__(self, pptx_file):
+    def __init__(self, pptx_file, course_id=None, file_id=None, course_title=None):
         # self.file_id = file_id
         self.pptx_file = pptx_file
+        self._course_id = course_id
+        self._file_id = file_id
+        self._course_title = course_title
         self.pres = Presentation(self.pptx_file)
     
     @property
@@ -112,25 +115,43 @@ class Course:
         return normal_slides
 
     @property
+    def has_menu(self):
+        for s in self.slide_ids:
+            slide = Slide(self, s)
+            if ' '.join(slide.slide_text).replace(' ', '').lower().startswith('mainmenu'):
+                return True
+        return False
+
+    @property
     def course_title(self):
         # title slide - first text of first slide of powerpoint
-        slide = Slide(self, self.slide_ids[0])
-        return(slide.slide_text[0])
+        if not self._course_title:
+            slide = Slide(self, self.slide_ids[0])
+            return(slide.slide_text[0])
+        else:
+            return self._course_title
 
     @property
     def course_id(self):
         # title slide - last text of first slide of powerpoint
-        slide = Slide(self, self.slide_ids[0])
-        return(slide.slide_text[-1])
+        if not self._course_id:
+            slide = Slide(self, self.slide_ids[0])
+            return(slide.slide_text[-1])
+        else:
+            return self._course_id
     
     @property
     def file_id(self):
-        try:
-            code = re.search('-(.*?)-', self.course_id).group(1)
-            num = self.course_id[self.course_id.rfind('-')+1:]
-            return f'{code}-{num}'
-        except Exception:
-            return 'FILE_ID_ERROR'
+        # course_id - filtered text
+        if not self._file_id:
+            try:
+                code = re.search('-(.*?)-', self.course_id).group(1)
+                num = self.course_id[self.course_id.rfind('-')+1:]
+                return f'{code}{num}'
+            except Exception:
+                return 'FILE_ID_ERROR'
+        else:
+            return self._file_id
 
     @property
     def course(self):
@@ -159,6 +180,7 @@ class Course:
         filename = f'{self.course_id}.json'
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(self.course, f, ensure_ascii=False, indent=4)
+            print(f'JSON written: {filename}')
         return filename
 
     def write_docx(self, *args):
@@ -179,15 +201,23 @@ class Course:
         doc.add_paragraph(self.course_title)
         table = doc.add_table(rows=0, cols=2)
         table.style = 'Table Grid'
+        
         for item in self.slide_ids:
+            # set slide
             slide = Slide(self, item)
-            if slide.slide_notes:
-                note = slide.slide_notes
-                for func in args:
-                    note = func(note, slide.slide_text, slide.slide_num)
+
+            # apply filters
+            narration = slide.slide_notes
+            for func in args:
+                narration = func(slide)
+            if not narration:
+                continue
+            
+            # add narration to table
+            if narration:
                 row_cells = table.add_row().cells
                 row_cells[0].text = f'{self.file_id}_{slide.slide_num}'
-                row_cells[1].text = note
+                row_cells[1].text = narration
 
         for cell in table.columns[0].cells:
             cell.width = Inches(0.5)
@@ -203,20 +233,26 @@ class Course:
         doc_file = f'{self.course_id}_narration.docx'
         try:
             doc.save(doc_file)
-        except PermissionError:
+            print(f'DOCX written: {doc_file}')
+        except Exception:
             print(f'{doc_file} exists! or invalid permissions!')
             return False
         return doc_file
 
-    def write_xml(self):
+    def write_xml(self, *args):
         # write course narration XML
         # course xml
         the_course = etree.Element('theCourse')
         the_course.append(etree.Comment('Generated with pycourse!'))
-        etree.SubElement(the_course, 'myCourseTitle').text = self.course_id
+        etree.SubElement(the_course, 'myCourseTitle').text = self.course_title
         etree.SubElement(the_course, 'studyGuidePDF').text = f'{self.course_id}.pdf'
         etree.SubElement(the_course, 'studyGuidePrint').text = f'{self.course_id}_StudyGuide.pdf'
-        etree.SubElement(the_course, 'courseMenu').text = 'YES'
+
+        menu = 'NO'
+        if self.has_menu:
+            menu = 'YES'
+
+        etree.SubElement(the_course, 'courseMenu').text = menu
 
         for n, section in enumerate(self.course.get('sections')):
             # theSections elem
@@ -224,50 +260,62 @@ class Course:
             
             file_num = 0
             for s in section.get('slides'):
+                # slide
+                slide = Slide(self, s)
+                
+                # apply filters
+                narration = slide.slide_notes
+                for func in args:
+                    narration = func(narration, slide.slide_text, slide.slide_num, slide.slide_type)
+
                 # sectionNumber elem
                 section_num = etree.SubElement(the_sections, 'sectionNumber')
 
                 # theFileToLoad elem
                 the_file_to_load = etree.SubElement(section_num, 'theFileToLoad')
                 the_file_to_load.text = f'{self.file_id}_s{n}_{file_num+1}.html'
-                file_num += 1
 
                 # closed caption elem
                 closed_caption = etree.SubElement(section_num, 'closedCaptionText')
-                slide = Slide(self, s)
-                closed_caption.text = slide.slide_notes
-        
+                
+                closed_caption.text = narration
+
+                # increment filenum
+                file_num += 1
+
         xml_file = f'{self.course_id}_narration.xml'
         tree_string = etree.tostring(the_course, pretty_print=True).decode('utf-8')
         with open(xml_file, 'w') as f:
             f.write(tree_string)
+            print(f'XML written: {xml_file}')
 
         return xml_file
 
-    def write_txt(self, *args):
+    def write_txt(self):
         txt_file = f'{self.course_id}_narration.txt'
         with open(txt_file, 'w') as f:
             for item in self.slide_ids:
                 slide = Slide(self, item)
                 if slide.slide_notes:
                     note = slide.slide_notes
-                    for func in args:
-                        note = func(note, slide.slide_text, slide.slide_num)
                     f.write(f'{note}\n\n')
+            print(f'TXT written: {txt_file}')
 
         return txt_file
 
 
 # custom slide filters
-def filter_kc(slide_notes, slide_text, slide_num):
-    # remove knowlege check notes slides
+def filter_kc(slide_notes, slide_text, slide_num, slide_type):
+    # Capitalize and add knowledge check narration in () knowlege check notes slides
+    del slide_type
     if ' '.join(slide_text).lower().replace(' ', '').startswith('knowledgecheck'):
         print(f'Slide {str(slide_num)} | Knowledge Check skipped: {slide_notes}')
-        return ''
+        return f'KNOWLEDGE CHECK ({slide_notes})'
     return slide_notes
 
-def filter_ai(slide_notes, _, slide_num):
+def filter_ai(slide_notes, slide_text, slide_num, slide_type):
     # omit slide notes after "Aditional Information" in notes
+    del slide_text, slide_type
     if 'Additional Information' in slide_notes:
         split_notes = slide_notes.split('Additional Information')
         if split_notes[0].replace('\n', ''):
@@ -276,21 +324,29 @@ def filter_ai(slide_notes, _, slide_num):
         return ''
     return slide_notes
 
+def to_caps(slide_notes, slide_text, slide_num, slide_type):
+    del slide_text, slide_num, slide_type
+    return slide_notes.upper()
+    
 
 if __name__ == '__main__':
+    print(len(sys.argv))
     # try:
     #     pres_file = sys.argv[1]
     # except IndexError:
     #     print('Provide arguments: <pptx file>')
     #     sys.exit()
 
-    # pres_file = r'test_files\SMA-HQ-WBT-108.pptx'
-    pres_file = r'test_files\SMA-SS-WBT-0013_RIDM.pptx'
+    pres_file = r'test_files\SMA-HQ-WBT-108.pptx'
+    # pres_file = r'test_files\SMA-SS-WBT-0013_RIDM.pptx'
     # pres_file = r'test_files\SMA-AS-WBT-101 NAMIS Refresher 11-6-2020.pptx'
     # pres_file = r'test_files\SMA-OV-WBT-132 Orion Capsure Recovery Case Study 03-04-21.pptx'
     # pres_file = r'test_files\SMA-OV-WBT-131_03-23-21.pptx'
 
-    course = Course(pres_file)
-    for slide in course.slide_ids:
-        s = Slide(course, slide)
-        print(s.slide_text)
+    course = Course(pres_file, course_id='SMA-HQ-WBT-108', course_title='awesome course')
+
+    # write files
+    course.write_xml()
+    course.write_docx()
+    course.write_json()
+    course.write_txt()
