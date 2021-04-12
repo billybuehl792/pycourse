@@ -201,7 +201,7 @@ class Course:
         doc.add_paragraph(self.course_title)
         table = doc.add_table(rows=0, cols=2)
         table.style = 'Table Grid'
-        
+
         for item in self.slide_ids:
             # set slide
             slide = Slide(self, item)
@@ -337,11 +337,11 @@ if __name__ == '__main__':
     #     print('Provide arguments: <pptx file>')
     #     sys.exit()
 
-    pres_file = r'test_files\SMA-HQ-WBT-108.pptx'
-    # pres_file = r'test_files\SMA-SS-WBT-0013_RIDM.pptx'
-    # pres_file = r'test_files\SMA-AS-WBT-101 NAMIS Refresher 11-6-2020.pptx'
-    # pres_file = r'test_files\SMA-OV-WBT-132 Orion Capsure Recovery Case Study 03-04-21.pptx'
-    # pres_file = r'test_files\SMA-OV-WBT-131_03-23-21.pptx'
+    pres_file = r'testFiles\SMA-HQ-WBT-108.pptx'
+    # pres_file = r'testFiles\SMA-SS-WBT-0013_RIDM.pptx'
+    # pres_file = r'testFiles\SMA-AS-WBT-101 NAMIS Refresher 11-6-2020.pptx'
+    # pres_file = r'testFiles\SMA-OV-WBT-132 Orion Capsure Recovery Case Study 03-04-21.pptx'
+    # pres_file = r'testFiles\SMA-OV-WBT-131_03-23-21.pptx'
 
     course = Course(pres_file, course_id='SMA-HQ-WBT-108', course_title='awesome course')
 
