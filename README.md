@@ -3,5 +3,10 @@
 
 ## Feature Support
 *pycourse* has the following features:
-- Slide text \(text in slide\) extraction
-- Slide notes \(notes section of slide\) extraction
+- Slide text \(text in slide\) extraction as array
+- Slide notes \(notes section of slide\) extraction as string
+- Get information about the each slide in relation to course + course standards
+- Write course to JSON
+- Write course narration to XML
+- Write course narration to TXT
+- Write course narration to DOCX

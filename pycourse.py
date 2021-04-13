@@ -76,7 +76,7 @@ class Slide:
 
     @staticmethod
     def format_string(string):
-        string = string.replace('\n', ' ')
+        string = string.replace('\n', ' ')  # dont replace new lines
         string = string.replace('’', "'")
         string = string.replace('‘', "'")
         string = string.replace('“', '"')
@@ -90,11 +90,13 @@ class Slide:
             return ''
         return string
     
+    def __repr__(self):
+        return f'Slide({self.course.title}, {self.slide_id}, {self.slide_num})'
+
 
 class Course:
 
     def __init__(self, pptx_file, course_id=None, file_id=None, course_title=None):
-        # self.file_id = file_id
         self.pptx_file = pptx_file
         self._course_id = course_id
         self._file_id = file_id
@@ -323,6 +325,9 @@ class Course:
 
         return txt_file
 
+    def __repr__(self):
+        return f'Course({self.course_id}, {self.course_title})'
+
 
 # custom slide filters
 def filter_kc(slide_notes, slide_text, slide_num, slide_type):
@@ -370,8 +375,6 @@ if __name__ == '__main__':
     
     # course object
     course = Course(pptx_file, course_id=course_id, course_title=course_title, file_id=file_id)
-    
-    # pres_file_example = r'testFiles\SMA-HQ-WBT-108.pptx'
 
     # write files
     course.write_xml()
