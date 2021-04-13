@@ -13,11 +13,31 @@ from lxml import etree
 
 class Slide:
 
-    def __init__(self, course, slide_id):
+    def __init__(self, course, slide_id=None, slide_num=None):
         self.course = course
-        self.slide_id = slide_id
+        self._slide_id = slide_id
+        self._slide_num = slide_num
         self.slide = self.course.pres.slides.get(self.slide_id, default=None)
-        self.slide_num = self.course.pres.slides.index(self.slide) + 1
+
+    @property
+    def slide_id(self):
+        if not self._slide_id:
+            if self._slide_num:
+                return self.course.slide_ids[self._slide_num - 1]
+            else:
+                raise Exception('slide_id or slide_num not provided')
+        else:
+            return self._slide_id
+
+    @property
+    def slide_num(self):
+        if not self._slide_num:
+            if self._slide_id:
+                return self.course.slide_ids.index(self._slide_id) + 1
+            else:
+                raise Exception('slide_id or slide_num not provided')
+        else:
+            return self._slide_num
 
     @property
     def slide_type(self):
@@ -72,7 +92,7 @@ class Slide:
     
 
 class Course:
-    
+
     def __init__(self, pptx_file, course_id=None, file_id=None, course_title=None):
         # self.file_id = file_id
         self.pptx_file = pptx_file
@@ -327,23 +347,31 @@ def filter_ai(slide_notes, slide_text, slide_num, slide_type):
 def to_caps(slide_notes, slide_text, slide_num, slide_type):
     del slide_text, slide_num, slide_type
     return slide_notes.upper()
-    
+
 
 if __name__ == '__main__':
-    print(len(sys.argv))
-    # try:
-    #     pres_file = sys.argv[1]
-    # except IndexError:
-    #     print('Provide arguments: <pptx file>')
-    #     sys.exit()
-
-    pres_file = r'testFiles\SMA-HQ-WBT-108.pptx'
-    # pres_file = r'testFiles\SMA-SS-WBT-0013_RIDM.pptx'
-    # pres_file = r'testFiles\SMA-AS-WBT-101 NAMIS Refresher 11-6-2020.pptx'
-    # pres_file = r'testFiles\SMA-OV-WBT-132 Orion Capsure Recovery Case Study 03-04-21.pptx'
-    # pres_file = r'testFiles\SMA-OV-WBT-131_03-23-21.pptx'
-
-    course = Course(pres_file, course_id='SMA-HQ-WBT-108', course_title='awesome course')
+    
+    # get sys arguments
+    l = len(sys.argv)
+    if l <= 1:
+        print('Provide arguments: <pptx file> <course_id:optional> <course_title:optional> <file_id:optional>')
+        sys.exit()
+    elif l >= 2:
+        pptx_file = sys.argv[1]
+        course_id = None
+        file_id = None
+        course_title = None
+        if l >= 3:
+            course_id = sys.argv[2]
+            if l >= 4:
+                course_title = sys.argv[3]
+                if l >= 5:
+                    file_id = sys.argv[4]
+    
+    # course object
+    course = Course(pptx_file, course_id=course_id, course_title=course_title, file_id=file_id)
+    
+    # pres_file_example = r'testFiles\SMA-HQ-WBT-108.pptx'
 
     # write files
     course.write_xml()
