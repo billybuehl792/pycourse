@@ -30,3 +30,8 @@ def to_caps(slide_notes, slide_text, slide_num, slide_type):
     del slide_text, slide_num, slide_type
 
     return slide_notes.upper()
+
+# skip main menu in docx and xml
+# skip knowledge checks in docx
+# skip section headers
+# condense knowledge 

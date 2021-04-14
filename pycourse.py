@@ -76,13 +76,16 @@ class Slide:
 
     @staticmethod
     def format_string(string):
-        string = string.replace('\n', ' ')  # dont replace new lines
+        string = string.replace('\n', ' ')
         string = string.replace('’', "'")
         string = string.replace('‘', "'")
+        string = string.replace('  ', ' ')
         string = string.replace('“', '"')
         string = string.replace('”', '"')
         string = string.replace('–', '-')
         string = string.replace('—', '-')
+        if string.endswith('\n'):
+            string = string[:-2]
         string = string.replace('‐', '')
         string = string.replace('…', '...')
         string = string.replace('˚', ' degrees ')
@@ -228,11 +231,15 @@ class Course:
             # set slide
             slide = Slide(self, item)
 
+            # skip main menu
+            if slide.slide_type == 'menu' or slide.slide_type == 'section_header':
+                continue
+            
             # apply filters
             narration = slide.slide_notes
             for func in args:
                 narration = func(slide)
-            if not narration:
+            if not narration.replace(' ', ''):
                 continue
             
             # add narration to table
@@ -285,6 +292,10 @@ class Course:
                 # slide
                 slide = Slide(self, s)
                 
+                # skip main menu
+                if slide.slide_type == 'menu' or slide.slide_type == 'section_header':
+                    continue
+
                 # apply filters
                 narration = slide.slide_notes
                 for func in args:
@@ -335,6 +346,7 @@ def filter_kc(slide_notes, slide_text, slide_num, slide_type):
     del slide_type
     if ' '.join(slide_text).lower().replace(' ', '').startswith('knowledgecheck'):
         print(f'Slide {str(slide_num)} | Knowledge Check skipped: {slide_notes}')
+        return ''
         return f'KNOWLEDGE CHECK ({slide_notes})'
     return slide_notes
 
@@ -357,27 +369,29 @@ def to_caps(slide_notes, slide_text, slide_num, slide_type):
 if __name__ == '__main__':
     
     # get sys arguments
-    l = len(sys.argv)
-    if l <= 1:
-        print('Provide arguments: <pptx file> <course_id:optional> <course_title:optional> <file_id:optional>')
-        sys.exit()
-    elif l >= 2:
-        pptx_file = sys.argv[1]
-        course_id = None
-        file_id = None
-        course_title = None
-        if l >= 3:
-            course_id = sys.argv[2]
-            if l >= 4:
-                course_title = sys.argv[3]
-                if l >= 5:
-                    file_id = sys.argv[4]
+    # l = len(sys.argv)
+    # if l <= 1:
+    #     print('Provide arguments: <pptx file> <course_id:optional> <course_title:optional> <file_id:optional>')
+    #     sys.exit()
+    # elif l >= 2:
+    #     pptx_file = sys.argv[1]
+    #     course_id = None
+    #     file_id = None
+    #     course_title = None
+    #     if l >= 3:
+    #         course_id = sys.argv[2]
+    #         if l >= 4:
+    #             course_title = sys.argv[3]
+    #             if l >= 5:
+    #                 file_id = sys.argv[4]
     
+    pptx_file = r'testFiles/SMA-HQ-WBT-108.pptx'
+    course_id = 'SMA-SS-WBT-400'
+    course_title = 'System Safety Analysis Relationships with Single Point of Failure Analysis'
+    file_id = 'SS400'
+
     # course object
     course = Course(pptx_file, course_id=course_id, course_title=course_title, file_id=file_id)
 
     # write files
-    course.write_xml()
-    course.write_docx()
-    course.write_json()
-    course.write_txt()
+    course.write_docx(filter_kc, filter_ai)
