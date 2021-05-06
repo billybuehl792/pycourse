@@ -195,7 +195,7 @@ class Course:
             slide_type = self.slide_type(slide_num)
 
             # skip main menu
-            if slide.slide_type == 'menu' or slide.slide_type == 'section_header':
+            if slide_type == 'menu' or slide_type == 'section_header':
                 continue
             
             # apply filters
@@ -395,6 +395,9 @@ if __name__ == '__main__':
     
     # course object
     course = Course(pptx_file, course_id=course_id, course_title=course_title, file_id=file_id)
-    print(course)
-    # pres_file_example = r'testFiles\SMA-HQ-WBT-108.pptx'
-    # course = Course(pres_file_example, course_id='SMA-HQ-WBT-108')
+
+    # write course files
+    course.write_txt()
+    course.write_json()
+    course.write_xml()
+    course.write_docx()
