@@ -30,6 +30,10 @@ class Course:
         return [slide.slide_id for slide in self.pres.slides]
 
     @property
+    def course_len(self):
+        return len(self.slide_ids)
+
+    @property
     def title_slides(self):
         layout = self.pres.slide_master.slide_layouts[TITLE_INDEX]
         return [slide.slide_id for slide in layout.used_by_slides]

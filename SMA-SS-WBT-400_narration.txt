@@ -1,0 +1,50 @@
+COURSE TITLE: SPOF
+COURSE ID: SMA-SS-WBT-400
+
+SLIDE:       1
+SLIDE TYPE:  title
+SLIDE TEXT:  System Safety Analysis Relationships  | with Single Point of Failure Analysis | SMA-SS-WBT-400
+SLIDE NOTES: Welcome to the System Safety Analysis Relationships with Single Point of Failure Analysis course.
+
+SLIDE:       2
+SLIDE TYPE:  standard
+SLIDE TEXT:  Welcome | This course is designed to teach you how to: | Detect and manage Single Point of Failures in a system | Recognize relationships between System Safety analytical methods
+SLIDE NOTES: This course is designed to teach you how to detect and manage Single Point of Failures in a system, and to recognize the relationships between the four most commonly used System Safety analytical methods.
+
+SLIDE:       3
+SLIDE TYPE:  standard
+SLIDE TEXT:  Learning Objectives | At the completion of this course, you will be able to:  | Define Single Point of Failure | Discuss why it is important to understand Single Point of Failures | Demonstrate an understanding of four main System Safety analytical methods and their interactions | Discuss the strengths and weakness of the System Safety analytical methods | Discuss management of Single Point of Failures 
+SLIDE NOTES: At the completion of the course, you will be able to define a Single Point of Failure, discuss why it's important to understand single point of failures, demonstrate an understanding of the four main System Safety analytical methods and how they interact, discuss the strengths and weaknesses of the methods, and discuss how single points of failures are managed. 
+
+SLIDE:       4
+SLIDE TYPE:  standard
+SLIDE TEXT:  Who Should Take This Course | This course is intended for: | Program, project, mission support, systems engineering, Safety and Mission Assurance (SMA), and Chief SMA Officer (CSO) personnel 
+SLIDE NOTES: This course is intended for NASA program, project, mission support, systems engineering, safety and mission assurance, and Chief SMA Officer personnel who wish to know more about single point of failures and how System Safety analytical methods complement one another.
+
+SLIDE:       5
+SLIDE TYPE:  standard
+SLIDE TEXT:  Single Point of Failure (Single Failure Point or SPOF) Definitions | An independent element of a system (hardware, software, or human) the failure of which would result in loss of objectives, hardware, or crew.  | - NPR 8715.3, NASA General Safety Program Requirements | A single item or component whose failure would cause an undesired event such as dropping a load or loss of control. | - NASA-STD-8719.9, Lifting Standard | An independent element of a system (hardware, software, or human) the failure of which would result in loss of objectives, hardware, or crew; in general, a component that, if failed, could lead to the overall failure of the system (for example, in a mechanical system, a component such as a lug, link, shackle, pin, bolt, rivet, or a weld that, if failed, could cause a system inability to support a load using load path analysis).  | - NASA-STD-8719.24 Annex | An independent element of a system (hardware, software, or human), the failure of which would result in loss of objectives, hardware, or crew.  | - NASA-STD-8729.1, Reliability and Maintainability Standard for Spaceflight and Support Systems
+SLIDE NOTES: Let's begin with what's meant by a single point of failure, which is also referred to as a single failure point or S-P-O-F.  Definitions from several NASA documents differ in wording but share a common theme: an independent element of a hardware, software, or human system, the failure of which would result in loss of objectives, hardware, or crew.  
+
+SLIDE:       6
+SLIDE TYPE:  standard
+SLIDE TEXT:  The Importance of Identifying and Managing SPOF - Example  | Source: Aircraft Owners and Pilots Association (AOPA)
+SLIDE NOTES: Select to view a video that illustrates why it's important to identify and manage a Single Point of Failure. It explains how, for aircraft pilots, a vacuum pump failure on a sunny day is not too concerning, but it's a serious problem in instrument meteorological conditions.
+
+SLIDE:       7
+SLIDE TYPE:  standard
+SLIDE TEXT:  The Importance of Identifying and Managing SPOF - Example  | Neither the pilot nor flight controller recognized the potential danger | Loss of the vacuum pump was not considered SPOF, as pilot served as backup | Options to provide vacuum pump backup | Secondary dry pump | Wet (oil lubricated) pump | Tablet/GPS with simulated panel | Easy-to-see annunciator lights | Electrical backup Instruments | AHRS driven system
+SLIDE NOTES: Given the situation described in the video, the pilot's initial response to the equipment failure was understandable. He was focused on getting home. Although he was aware that a problem existed - as evidenced by his desire to remain clear of clouds and his acceptance of emergency services - he didn't recognize the potentially serious consequences of the loss of instrumentation. Nor did the flight controller seem to understand the danger of the pilot's situation. When such an accident occurs, we want to know why; to find out if it could have been avoided. Remember that a single point of failure is a single component whose failure would cause an undesired event. In this case, the vacuum pump was not considered an SPOF because the pilot served as the backup. Was that the best determination? There were many design options that could have provided a backup to the pump. In this course, you'll learn how NASA identifies and manages single failure points, to help minimize the potential for serious consequences.    
+
+SLIDE:       8
+SLIDE TYPE:  standard
+SLIDE TEXT:  Key Terms | Safety - Freedom from hazards that can cause death, injury, or illness in humans or adversely affect the environment  | System Safety - The application of engineering and management principles, criteria, and techniques to optimize safety and reduce risks within the constraints of operational effectiveness, time, and cost throughout all phases of the system life cycle | Is an integral part of the development and operations of a system | Is to safety as system engineering is to engineering
+SLIDE NOTES: A brief review of several key terms will help establish a common foundation for understanding SPOF. Safety is the freedom from hazards that can have serious consequences.  System Safety is the application of principles, criteria, and techniques to optimize safety and reduce risks within certain constraints throughout the system life cycle. It is integral to the development and operations of a system. System safety is to safety as System Engineering is to engineering.  
+
+SLIDE:       9
+SLIDE TYPE:  standard
+SLIDE TEXT:  Key Terms | Hazard - A state or set of conditions, internal or external to a system, that has the potential to cause harm ( | NPR 8715.3, NASA General Safety Program Requirements) | Risk assessment - The process of determining the magnitude and consequences of risk. | Risk - Defined as a set of triplets: | Probability (qualitative or quantitative) of experiencing an undesired event | Consequences, impact, or severity that would occur if the undesired event were to occur | Uncertainties associated with the probability and consequences
+SLIDE NOTES: A hazard is a state or set of conditions that has the potential to cause harm.  A risk assessment determines the magnitude and consequences of risk. A risk is a combination of probability or likelihood, consequences, and uncertainties associated with an undesired event. Hazards do not always infer that risks are present, and risks do not necessarily result in a hazardous situation, although it's certainly possible.  
+
+SLIDE:       10
+SLIDE TYPE:  standard

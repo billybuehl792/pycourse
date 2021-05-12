@@ -1,6 +1,21 @@
 # pycourse
 *pycourse* is a small library used to create NSC course tools. With *pycourse*, PowerPoint slide-text and notes \(narration\) from each slide of a PowerPoint can be extracted, then used to build XML \(used for course configuration\), DOCX \(used for narration recording\), TXT \(used for narration\), and JSON \(used for future h5 course creation\) files. For the program to function properly, however, several \(easy-to-follow\) PowerPoint course standards must be used when initially building a course PowerPoint.
 
+## Installation
+Run the following to install:
+`pip install https://github.com/billybuehl792/pycourse`
+
+## Usage
+```python
+from pycourse.pycourse import Course
+
+# Create course object
+course = Course(pptx_file='/course.pptx')
+
+```
+
+
+
 ## Feature Support
 *pycourse* has the following features:
 - Slide text \(text in slide\) extraction as array
